@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TeleChat</title>
+<script src="/socket.io/socket.io.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --p:#17212b;--s:#232e3c;--t:#1c2733;--h:#2b5278;
+  --a:#5288c1;--tx:#d1d9e0;--t2:#6c8aa0;--t3:#4a6278;
+  --bo:#2b5278;--bi:#182533;--bd:#1e2d3d;--on:#4dcd5e;--rd:#e05252
+}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--p);color:var(--tx);height:100vh;overflow:hidden;display:flex}
+#auth{position:fixed;inset:0;background:var(--p);display:flex;align-items:center;justify-content:center;z-index:999}
+.abox{background:var(--s);border-radius:16px;padding:44px 38px;width:410px;max-width:95vw;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+.alogo{width:76px;height:76px;background:linear-gradient(135deg,#5288c1,#2b5278);border-radius:50%;margin:0 auto 20px;display:flex;align-items:center;justify-content:center;font-size:34px}
+.abox h1{font-size:24px;font-weight:700;margin-bottom:6px}
+.abox p{color:var(--t2);margin-bottom:26px;font-size:14px}
+.atabs{display:flex;background:var(--t);border-radius:10px;padding:4px;margin-bottom:20px}
+.atab{flex:1;padding:9px;border:none;background:none;color:var(--t2);border-radius:7px;cursor:pointer;font-size:13px;font-weight:500;transition:all .2s}
+.atab.on{background:var(--a);color:#fff}
+.ain{width:100%;padding:12px 14px;background:var(--t);border:1.5px solid var(--bd);border-radius:10px;color:var(--tx);font-size:14px;margin-bottom:11px;outline:none;transition:border-color .2s}
+.ain:focus{border-color:var(--a)}
+.ain::placeholder{color:var(--t3)}
+.abtn{width:100%;padding:13px;background:linear-gradient(135deg,#5288c1,#3a6d9e);border:none;border-radius:10px;color:#fff;font-size:15px;font-weight:600;cursor:pointer;transition:all .2s}
+.abtn:hover{filter:brightness(1.1)}
+.aerr{color:var(--rd);font-size:12px;margin-top:8px;min-height:16px}
+#app{display:none;width:100%;height:100vh}
+#app.v{display:flex}
+.sb{width:340px;min-width:340px;background:var(--s);display:flex;flex-direction:column;border-right:1px solid var(--bd);height:100vh;position:relative;overflow:hidden}
+.sbh{height:54px;padding:0 14px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--bd);flex-shrink:0}
+.ib{width:38px;height:38px;border:none;background:none;color:var(--t2);border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:19px;transition:all .2s;flex-shrink:0}
+.ib:hover{background:rgba(255,255,255,.07);color:var(--tx)}
+.sbar{flex:1;display:flex;align-items:center;background:var(--t);border-radius:18px;padding:0 12px;gap:7px;height:34px}
+.sinp{flex:1;border:none;background:none;color:var(--tx);font-size:13px;outline:none}
+.sinp::placeholder{color:var(--t3)}
+.smenu{position:absolute;left:0;top:54px;width:100%;background:var(--s);z-index:50;transform:translateX(-105%);transition:transform .25s ease;height:calc(100% - 54px);overflow-y:auto;box-shadow:4px 0 20px rgba(0,0,0,.3)}
+.smenu.op{transform:translateX(0)}
+.mprof{padding:26px 18px 18px;background:linear-gradient(135deg,#2b5278,#1a3a52)}
+.mav{width:56px;height:56px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:700;color:#fff;margin-bottom:12px}
+.mprof h3{font-size:16px;font-weight:700}
+.mprof p{font-size:12px;color:rgba(255,255,255,.5);margin-top:2px}
+.mitems{padding:6px 0}
+.mitem{padding:13px 18px;display:flex;align-items:center;gap:14px;cursor:pointer;color:var(--tx);font-size:14px;transition:background .15s}
+.mitem:hover{background:rgba(255,255,255,.06)}
+.mitem svg{color:var(--t2);width:18px;height:18px;flex-shrink:0}
+.mdiv{height:1px;background:var(--bd);margin:4px 0}
+.cl{flex:1;overflow-y:auto}
+.cl::-webkit-scrollbar{width:3px}
+.cl::-webkit-scrollbar-thumb{background:rgba(255,255,255,.08);border-radius:2px}
+.shdr{padding:10px 14px 4px;font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.6px}
+.ci{padding:9px 13px;display:flex;align-items:center;gap:11px;cursor:pointer;transition:background .15s;border-bottom:1px solid rgba(255,255,255,.02)}
+.ci:hover{background:rgba(255,255,255,.04)}
+.ci.on{background:var(--h)}
+.av{border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-weight:700;color:#fff;position:relative}
+.od{position:absolute;bottom:2px;right:2px;width:11px;height:11px;background:var(--on);border-radius:50%;border:2px solid var(--s)}
+.cinfo{flex:1;min-width:0}
+.ctop{display:flex;align-items:center;justify-content:space-between;margin-bottom:2px}
+.cname{font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ctime{font-size:11px;color:var(--t2);flex-shrink:0;margin-left:5px}
+.cprev{font-size:13px;color:var(--t2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:3px}
+.ub{background:var(--a);color:#fff;border-radius:10px;padding:1px 6px;font-size:11px;font-weight:700;flex-shrink:0;margin-left:auto}
+.fab{position:absolute;bottom:14px;right:14px;width:52px;height:52px;background:linear-gradient(135deg,var(--a),#3a6d9e);border:none;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(82,136,193,.4);transition:all .2s;color:#fff;z-index:5}
+.fab:hover{transform:scale(1.08)}
+.main{flex:1;display:flex;flex-direction:column;background:var(--p);position:relative;overflow:hidden;min-width:0}
+.es{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--t3)}
+.es-i{font-size:70px;margin-bottom:16px;opacity:.2}
+.es h2{font-size:20px;font-weight:300;color:var(--t2);margin-bottom:6px}
+.chdr{height:54px;padding:0 13px;display:flex;align-items:center;gap:11px;border-bottom:1px solid var(--bd);background:var(--s);cursor:pointer;flex-shrink:0}
+.chdrinfo{flex:1;min-width:0}
+.chname{font-size:15px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chst{font-size:12px;color:var(--t2)}
+.chst.onl{color:var(--on)}
+.hacts{display:flex;gap:2px}
+.pinned{display:none;padding:7px 14px;background:rgba(82,136,193,.1);border-bottom:1px solid var(--bd);align-items:center;gap:9px;flex-shrink:0}
+.pinned.sh{display:flex}
+.pbar{width:3px;height:30px;background:var(--a);border-radius:2px;flex-shrink:0}
+.plbl{font-size:11px;color:var(--a);font-weight:600}
+.ptxt{font-size:12px;color:var(--t2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.msgs{flex:1;overflow-y:auto;padding:14px 14px 6px;display:flex;flex-direction:column;gap:1px}
+.msgs::-webkit-scrollbar{width:3px}
+.msgs::-webkit-scrollbar-thumb{background:rgba(255,255,255,.07);border-radius:2px}
+.ddiv{text-align:center;margin:10px 0;pointer-events:none}
+.ddiv span{background:rgba(23,33,43,.92);color:var(--t2);font-size:11px;padding:4px 12px;border-radius:12px;border:1px solid var(--bd)}
+.mrow{display:flex;align-items:flex-end;gap:5px;margin:1px 0}
+.mrow.out{flex-direction:row-reverse}
+.avsm{width:28px;height:28px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;margin-bottom:2px}
+.bbl{max-width:70%;padding:7px 11px;border-radius:17px;font-size:14px;line-height:1.5;position:relative;word-break:break-word}
+.mrow.out .bbl{background:var(--bo);border-bottom-right-radius:3px}
+.mrow.in .bbl{background:var(--bi);border-bottom-left-radius:3px}
+.bmeta{display:flex;align-items:center;gap:3px;float:right;margin-left:9px;margin-top:1px;margin-bottom:-2px}
+.btime{font-size:10px;color:rgba(255,255,255,.38)}
+.bchk{font-size:11px}
+.bchk.r{color:var(--a)}
+.bchk.s{color:rgba(255,255,255,.38)}
+.brep{background:rgba(255,255,255,.07);border-left:3px solid var(--a);border-radius:7px;padding:5px 9px;margin-bottom:5px}
+.brepn{font-size:11px;color:var(--a);font-weight:600;margin-bottom:2px}
+.brept{font-size:12px;color:var(--t2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px}
+.rxns{display:flex;flex-wrap:wrap;gap:3px;margin-top:4px}
+.rxn{background:rgba(82,136,193,.2);border:1px solid rgba(82,136,193,.3);border-radius:11px;padding:2px 7px;font-size:12px;cursor:pointer;display:flex;align-items:center;gap:2px}
+.rxn:hover{background:rgba(82,136,193,.4)}
+.rxnc{font-size:11px;color:var(--a);font-weight:600}
+.gsender{font-size:11px;color:var(--a);font-weight:600;margin-bottom:3px}
+.edited{font-size:10px;color:rgba(255,255,255,.3);margin-left:3px}
+.typing{display:none;align-items:center;gap:7px;padding:3px 14px 5px;font-size:12px;color:var(--t2);flex-shrink:0}
+.tdots{display:flex;gap:3px;align-items:center}
+.td{width:5px;height:5px;background:var(--a);border-radius:50%;animation:tb 1.2s infinite}
+.td:nth-child(2){animation-delay:.2s}
+.td:nth-child(3){animation-delay:.4s}
+@keyframes tb{0%,60%,100%{transform:translateY(0)}30%{transform:translateY(-5px)}}
+.rbar{display:none;padding:7px 14px;background:var(--s);border-top:1px solid var(--bd);align-items:center;gap:9px;flex-shrink:0}
+.rbar.sh{display:flex}
+.rbarline{width:3px;height:30px;background:var(--a);border-radius:2px;flex-shrink:0}
+.rbinfo{flex:1;min-width:0}
+.rbn{font-size:11px;color:var(--a);font-weight:600}
+.rbt{font-size:12px;color:var(--t2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.inpa{padding:9px 11px;background:var(--s);display:flex;align-items:flex-end;gap:7px;border-top:1px solid var(--bd);flex-shrink:0}
+.minp{width:100%;background:var(--t);border:none;border-radius:20px;padding:9px 14px;color:var(--tx);font-size:14px;outline:none;resize:none;max-height:110px;line-height:1.5;font-family:inherit}
+.minp::placeholder{color:var(--t3)}
+.sbtn{width:42px;height:42px;background:linear-gradient(135deg,var(--a),#3a6d9e);border:none;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s;flex-shrink:0}
+.sbtn:hover{filter:brightness(1.12);transform:scale(1.05)}
+.sbtn svg{width:18px;height:18px;fill:none;stroke:#fff;stroke-width:2}
+.ep{position:absolute;bottom:56px;left:0;background:var(--s);border-radius:13px;padding:10px;border:1px solid var(--bd);box-shadow:0 8px 28px rgba(0,0,0,.4);display:none;z-index:200;width:276px}
+.ep.sh{display:block}
+.epg{display:grid;grid-template-columns:repeat(8,1fr);gap:1px}
+.epe{font-size:20px;padding:5px;border-radius:7px;cursor:pointer;text-align:center;transition:background .12s;user-select:none}
+.epe:hover{background:rgba(255,255,255,.1)}
+.ctx{position:fixed;background:var(--s);border-radius:11px;padding:5px;z-index:500;min-width:178px;box-shadow:0 8px 28px rgba(0,0,0,.5);border:1px solid var(--bd);animation:ci .14s ease}
+@keyframes ci{from{opacity:0;transform:scale(.9)}to{opacity:1;transform:scale(1)}}
+.cxi{padding:9px 13px;border-radius:7px;cursor:pointer;display:flex;align-items:center;gap:9px;font-size:13px;transition:background .12s}
+.cxi:hover{background:rgba(255,255,255,.07)}
+.cxi.danger{color:var(--rd)}
+.cxe{display:flex;gap:2px;padding:7px 9px}
+.cxem{font-size:21px;cursor:pointer;padding:3px 5px;border-radius:7px;transition:all .12s}
+.cxem:hover{background:rgba(255,255,255,.1);transform:scale(1.2)}
+.cxd{height:1px;background:var(--bd);margin:3px 0}
+.mo{position:fixed;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(4px);z-index:600;display:none;align-items:center;justify-content:center}
+.mo.sh{display:flex}
+.modal{background:var(--s);border-radius:15px;padding:26px;width:400px;max-width:94vw;animation:mi .2s ease}
+@keyframes mi{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
+.modal h2{font-size:18px;font-weight:700;margin-bottom:18px}
+.min{width:100%;padding:11px 13px;background:var(--t);border:1.5px solid var(--bd);border-radius:9px;color:var(--tx);font-size:14px;margin-bottom:12px;outline:none;transition:border-color .2s}
+.min:focus{border-color:var(--a)}
+.min::placeholder{color:var(--t3)}
+.mrow2{display:flex;gap:9px;margin-bottom:12px}
+.mtyp{flex:1;padding:11px;background:var(--t);border:1.5px solid var(--bd);border-radius:9px;color:var(--t2);cursor:pointer;text-align:center;transition:all .2s;font-size:13px}
+.mtyp.on{border-color:var(--a);background:rgba(82,136,193,.15);color:var(--a)}
+.macts{display:flex;gap:9px;margin-top:3px}
+.mcnl{flex:1;padding:11px;background:var(--t);border:none;border-radius:9px;color:var(--t2);cursor:pointer;font-size:14px;transition:all .2s}
+.mcnl:hover{background:rgba(255,255,255,.07)}
+.msub{flex:1;padding:11px;background:var(--a);border:none;border-radius:9px;color:#fff;cursor:pointer;font-size:14px;font-weight:600;transition:all .2s}
+.msub:hover{filter:brightness(1.1)}
+.pp{width:0;background:var(--s);border-left:1px solid var(--bd);overflow:hidden;transition:width .24s ease;flex-shrink:0}
+.pp.op{width:290px}
+.ppin{width:290px}
+.ppban{height:140px;display:flex;align-items:center;justify-content:center;position:relative}
+.ppclose{position:absolute;top:9px;right:9px;width:32px;height:32px;background:rgba(0,0,0,.4);border:none;border-radius:50%;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:17px}
+.ppinfo{padding:13px 16px}
+.ppname{font-size:18px;font-weight:700}
+.ppun{color:var(--a);font-size:13px;margin-top:2px}
+.ppdiv{height:1px;background:var(--bd);margin:11px 0}
+.pprow{display:flex;align-items:center;gap:11px;padding:7px 0;font-size:14px}
+.pprow svg{color:var(--t2);flex-shrink:0}
+.scrbtn{position:absolute;bottom:72px;right:14px;width:38px;height:38px;background:var(--s);border:1px solid var(--bd);border-radius:50%;cursor:pointer;display:none;align-items:center;justify-content:center;box-shadow:0 2px 10px rgba(0,0,0,.3);color:var(--t2);font-size:17px;z-index:8}
+.scrbtn.sh{display:flex}
+.toast{position:fixed;bottom:18px;right:18px;background:var(--s);color:var(--tx);padding:10px 16px;border-radius:9px;border:1px solid var(--bd);box-shadow:0 4px 18px rgba(0,0,0,.4);z-index:900;font-size:13px;transform:translateY(70px);transition:transform .26s ease;max-width:260px}
+.toast.sh{transform:translateY(0)}
+body.light{--p:#f0f2f5;--s:#fff;--t:#f0f2f5;--h:#d0e8ff;--bd:#e0e0e0;--tx:#222;--t2:#666;--t3:#aaa;--bo:#dcf8c6;--bi:#fff}
+</style>
+</head>
+<body>
+
+<!-- AUTH -->
+<div id="auth">
+  <div class="abox">
+    <div class="alogo">✈️</div>
+    <h1>TeleChat</h1>
+    <p>Tez va xavfsiz messenjer</p>
+    <div class="atabs">
+      <button class="atab on" onclick="stab('l')">Kirish</button>
+      <button class="atab" onclick="stab('r')">Ro'yxatdan o'tish</button>
+    </div>
+    <div id="lf">
+      <input class="ain" id="le" type="email" placeholder="Email">
+      <input class="ain" id="lp" type="password" placeholder="Parol" onkeydown="if(event.key==='Enter')login()">
+      <button class="abtn" onclick="login()">Kirish</button>
+    </div>
+    <div id="rf" style="display:none">
+      <input class="ain" id="rn" placeholder="To'liq ism">
+      <input class="ain" id="ru" placeholder="@username">
+      <input class="ain" id="re" type="email" placeholder="Email">
+      <input class="ain" id="rp" type="password" placeholder="Parol" onkeydown="if(event.key==='Enter')reg()">
+      <button class="abtn" onclick="reg()">Ro'yxatdan o'tish</button>
+    </div>
+    <div class="aerr" id="aerr"></div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <div class="sb">
+    <div class="sbh">
+      <button class="ib" id="mbt" onclick="tmenu()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+          <rect x="3" y="5" width="18" height="2" rx="1"/>
+          <rect x="3" y="11" width="18" height="2" rx="1"/>
+          <rect x="3" y="17" width="18" height="2" rx="1"/>
+        </svg>
+      </button>
+      <div class="sbar">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+        </svg>
+        <input class="sinp" id="si" placeholder="Qidirish" oninput="filt()">
+      </div>
+    </div>
+    <div class="smenu" id="sm">
+      <div class="mprof">
+        <div class="mav" id="mav"></div>
+        <h3 id="mname">-</h3>
+        <p id="musr">-</p>
+      </div>
+      <div class="mitems">
+        <div class="mitem" onclick="og('group')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+            <circle cx="9" cy="7" r="4"/>
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>
+          </svg>
+          Yangi guruh
+        </div>
+        <div class="mitem" onclick="og('channel')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/>
+          </svg>
+          Yangi kanal
+        </div>
+        <div class="mdiv"></div>
+        <div class="mitem" onclick="ttheme()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+          </svg>
+          <span id="tlbl">Yorug' tema</span>
+        </div>
+        <div class="mdiv"></div>
+        <div class="mitem" onclick="logout()" style="color:var(--rd)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/>
+          </svg>
+          Chiqish
+        </div>
+      </div>
+    </div>
+    <div class="cl" id="cl"></div>
+    <button class="fab" onclick="og('group')">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <path d="M12 5v14M5 12h14"/>
+      </svg>
+    </button>
+  </div>
+
+  <div class="main" id="main">
+    <div class="es" id="es">
+      <div class="es-i">✈️</div>
+      <h2>TeleChat</h2>
+      <p style="font-size:14px">Chat ochish uchun kontakt tanlang</p>
+    </div>
+    <div id="cv" style="display:none;flex-direction:column;height:100%">
+      <div class="chdr" onclick="tprof()">
+        <div class="av" id="cav" style="width:38px;height:38px;font-size:15px"></div>
+        <div class="chdrinfo">
+          <div class="chname" id="cn"></div>
+          <div class="chst" id="cs"></div>
+        </div>
+        <div class="hacts" onclick="e=>e.stopPropagation()">
+          <button class="ib" onclick="event.stopPropagation();t('🔍 Tez orada!')">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+            </svg>
+          </button>
+          <button class="ib" onclick="event.stopPropagation();t('📞 Tez orada!')">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.58 3.47C1.98 2.37 2.92 1.85 3.93 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
+            </svg>
+          </button>
+          <button class="ib" onclick="event.stopPropagation();tprof()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/>
+              <circle cx="12" cy="16" r=".5" fill="currentColor"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+      <div class="pinned" id="pb">
+        <div class="pbar"></div>
+        <div style="flex:1;min-width:0">
+          <div class="plbl">📌 Muhim xabar</div>
+          <div class="ptxt" id="ptxt"></div>
+        </div>
+        <button class="ib" onclick="event.stopPropagation();clrpin()" style="font-size:15px">×</button>
+      </div>
+      <div class="msgs" id="msgs" onscroll="onsc()"></div>
+      <div class="typing" id="typ">
+        <div class="tdots">
+          <div class="td"></div><div class="td"></div><div class="td"></div>
+        </div>
+        <span>yozmoqda...</span>
+      </div>
+      <div class="rbar" id="rb">
+        <div class="rbarline"></div>
+        <div class="rbinfo">
+          <div class="rbn" id="rbn"></div>
+          <div class="rbt" id="rbt"></div>
+        </div>
+        <button class="ib" onclick="crep()" style="font-size:18px">×</button>
+      </div>
+      <div class="inpa">
+        <button class="ib" id="ept" onclick="tep()">😊</button>
+        <button class="ib" onclick="t('📎 Fayl yuborish tez orada!')">
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
+          </svg>
+        </button>
+        <div style="flex:1;position:relative">
+          <textarea class="minp" id="mi" placeholder="Xabar yozing..." rows="1"
+            onkeydown="hk(event)" oninput="hi(this)"></textarea>
+          <div class="ep" id="epp"></div>
+        </div>
+        <button class="sbtn" onclick="send()">
+          <svg viewBox="0 0 24 24">
+            <path d="M22 2L11 13" stroke-linecap="round"/>
+            <path d="M22 2L15 22 11 13 2 9l20-7z" stroke-linecap="round"/>
+          </svg>
+        </button>
+      </div>
+      <button class="scrbtn" id="sb2" onclick="sc()">↓</button>
+    </div>
+  </div>
+
+  <div class="pp" id="pp">
+    <div class="ppin" id="ppc"></div>
+  </div>
+</div>
+
+<div class="ctx" id="ctx" style="display:none"></div>
+
+<div class="mo" id="gm">
+  <div class="modal">
+    <h2 id="mt">Yangi guruh</h2>
+    <input class="min" id="gn" placeholder="Nom">
+    <input class="min" id="gu" placeholder="@username">
+    <div class="mrow2">
+      <button class="mtyp on" id="mg" onclick="smt('group')">👥 Guruh</button>
+      <button class="mtyp" id="mc" onclick="smt('channel')">📢 Kanal</button>
+    </div>
+    <div class="macts">
+      <button class="mcnl" onclick="cm()">Bekor</button>
+      <button class="msub" onclick="cg()">Yaratish</button>
+    </div>
+    <div class="aerr" id="ge"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const sk=io();
+let me=null,ac=null,au=[],ag=[],rp=null,tt=null,ity=false,pins={},unr={},lms={},pop=false,lm=false,mtp='group';
+const E=['😀','😂','😍','🥰','😎','🤔','😅','😭','❤️','👍','👎','🔥','✨','🎉','💯','😊','🙏','😢','😡','🤣','💪','⭐','🌟','💫','🎶','🎵','🍕','🍔','🎮','🚀','💡','🎯','🏆','💎','🌈','🦋','🌸','👏','🥳','🤩','😇','🥺'];
+const C=['#5288c1','#fa709a','#4facfe','#f093fb','#30cfd0','#f7971e','#43e97b','#e86ba7','#667eea','#4ecc5e'];
+const gc=s=>{if(!s)return C[0];let n=0;for(let c of s)n+=c.charCodeAt(0);return C[n%C.length]};
+const gi=s=>s?s.split(' ').map(w=>w[0]||'').join('').toUpperCase().slice(0,2):'?';
+const ft=ts=>{if(!ts)return'';const d=new Date(ts);return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')};
+const xe=s=>s?String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'):'';
+const $=id=>document.getElementById(id);
+
+function stab(x){
+  document.querySelectorAll('.atab').forEach((el,i)=>el.classList.toggle('on',(x==='l'?0:1)===i));
+  $('lf').style.display=x==='l'?'block':'none';
+  $('rf').style.display=x==='r'?'block':'none';
+  $('aerr').textContent='';
+}
+function login(){
+  const e=$('le').value.trim(),p=$('lp').value;
+  if(!e||!p){$('aerr').textContent='Email va parol kiriting!';return}
+  me={email:e,name:e.split('@')[0],username:'@'+e.split('@')[0]};go();
+}
+function reg(){
+  const n=$('rn').value.trim(),u=$('ru').value.trim().replace('@',''),e=$('re').value.trim(),p=$('rp').value;
+  if(!n||!u||!e||!p){$('aerr').textContent="Barcha maydonlarni to'ldiring!";return}
+  me={email:e,name:n,username:'@'+u};go();
+}
+function go(){
+  $('auth').style.display='none';
+  $('app').classList.add('v');
+  sk.emit('register',{email:me.email,name:me.name,username:me.username,avatar:gi(me.name)});
+  bep();ump();
+}
+function logout(){
+  me=null;ac=null;au=[];ag=[];unr={};lms={};
+  $('app').classList.remove('v');
+  $('auth').style.display='flex';
+  $('cv').style.display='none';
+  $('es').style.display='flex';
+  $('cl').innerHTML='';cmenu2();
+}
+
+sk.on('registration-error',d=>{$('aerr').textContent=d.message;$('auth').style.display='flex';$('app').classList.remove('v')});
+sk.on('users-list',u=>{au=u.filter(x=>x.email!==me?.email);rl()});
+sk.on('groups-list',g=>{ag=g;rl()});
+sk.on('new-group',g=>{if(!ag.find(x=>x.id===g.id))ag.push(g);rl()});
+sk.on('group-created',g=>{t('✅ "'+g.name+'" yaratildi!');cm();opg(g.id)});
+sk.on('group-error',d=>{$('ge').textContent=d.message});
+sk.on('group-updated',g=>{const i=ag.findIndex(x=>x.id===g.id);if(i>=0)ag[i]=g;rl();if(ac?.id===g.id){ac.members=g.members;uh()}});
+sk.on('user-online',d=>{const u=au.find(x=>x.email===d.userId);if(u)u.online=true;uhs();rl()});
+sk.on('user-offline',d=>{const u=au.find(x=>x.email===d.userId);if(u){u.online=false;u.lastSeen=d.lastSeen;}uhs();rl()});
+sk.on('receive-message',msg=>{
+  if(ac?.type==='user'&&(ac.id===msg.senderId||ac.id===msg.receiverId)){am(msg);sc();sk.emit('mark-as-read',{senderId:msg.senderId,receiverId:me.email})}
+  else{addu(msg.senderId);t('💬 '+msg.senderId.split('@')[0]+': '+msg.text.slice(0,38))}
+  slm(msg.senderId,msg);
+});
+sk.on('message-sent',msg=>{
+  const el=document.querySelector('[data-pd="'+msg.id+'"]');
+  if(el){el.removeAttribute('data-pd');const c=el.querySelector('.bchk');if(c)c.classList.add('s')}
+  slm(msg.receiverId,msg);
+});
+sk.on('messages-history',msgs=>rm(msgs));
+sk.on('group-messages-history',msgs=>rm(msgs,true));
+sk.on('receive-group-message',({message,group})=>{
+  if(ac?.type==='group'&&ac.id===group.id){am(message,true);sc()}
+  else{addu(group.id);t('📢 '+group.name+': '+message.text.slice(0,38))}
+  slm(group.id,message);
+});
+sk.on('user-typing',d=>{if(ac?.id===d.senderId)$('typ').style.display=d.isTyping?'flex':'none'});
+sk.on('messages-read',()=>document.querySelectorAll('.mrow.out .bchk').forEach(el=>{el.classList.remove('s');el.classList.add('r')}));
+
+function addu(id){unr[id]=(unr[id]||0)+1;rl()}
+function clru(id){unr[id]=0;rl()}
+function slm(id,msg){lms[id]=msg;rl()}
+
+function rl(){
+  const fl=($('si').value||'').toLowerCase();
+  let h='';
+  const mg=ag.filter(g=>g.members?.includes(me?.email));
+  if(mg.length){
+    h+='<div class="shdr">Guruhlar</div>';
+    mg.filter(g=>!fl||g.name.toLowerCase().includes(fl)).forEach(g=>{
+      const lm2=lms[g.id],uc=unr[g.id]||0,act=ac?.id===g.id;
+      h+=`<div class="ci${act?' on':''}" onclick="opg('${g.id}')">
+        <div class="av" style="width:48px;height:48px;font-size:18px;background:${gc(g.name)}">${g.type==='channel'?'📢':'👥'}</div>
+        <div class="cinfo">
+          <div class="ctop"><span class="cname">${xe(g.name)}</span><span class="ctime">${lm2?ft(lm2.timestamp):''}</span></div>
+          <div class="cprev">${lm2?xe(lm2.text.slice(0,34)):'<span style="opacity:.5">Xabar yo\'q</span>'}${uc?`<span class="ub">${uc}</span>`:''}</div>
+        </div></div>`;
+    });
+  }
+  if(au.length){
+    h+='<div class="shdr">Kontaktlar</div>';
+    au.filter(u=>!fl||u.name.toLowerCase().includes(fl)).forEach(u=>{
+      const lm2=lms[u.email],uc=unr[u.email]||0,act=ac?.id===u.email;
+      h+=`<div class="ci${act?' on':''}" onclick="opu('${u.email}')">
+        <div class="av" style="width:48px;height:48px;font-size:18px;background:${gc(u.name)}">${xe(gi(u.name))}${u.online?'<div class="od"></div>':''}</div>
+        <div class="cinfo">
+          <div class="ctop"><span class="cname">${xe(u.name)}</span><span class="ctime">${lm2?ft(lm2.timestamp):''}</span></div>
+          <div class="cprev">${lm2?xe(lm2.text.slice(0,34)):`<span style="opacity:.5">${u.online?'Online':'Offline'}</span>`}${uc?`<span class="ub">${uc}</span>`:''}</div>
+        </div></div>`;
+    });
+  }
+  if(!h)h='<div style="padding:28px;text-align:center;color:var(--t3);font-size:13px">Hech kim topilmadi</div>';
+  $('cl').innerHTML=h;
+}
+function filt(){rl()}
+
+function opu(email){
+  const u=au.find(x=>x.email===email);if(!u)return;
+  ac={type:'user',id:email,name:u.name,username:u.username,online:u.online,lastSeen:u.lastSeen};
+  shc();sk.emit('get-messages',{user1:me.email,user2:email});clru(email);
+  sk.emit('mark-as-read',{senderId:email,receiverId:me.email});
+}
+function opg(gid){
+  const g=ag.find(x=>x.id===gid);if(!g)return;
+  ac={type:'group',id:gid,name:g.name,username:g.username,gtype:g.type,members:g.members};
+  shc();sk.emit('get-group-messages',{groupId:gid});clru(gid);
+  if(!g.members?.includes(me.email))sk.emit('join-group',{groupId:gid,userId:me.email});
+}
+function shc(){
+  $('es').style.display='none';
+  const cv=$('cv');cv.style.display='flex';cv.style.flexDirection='column';cv.style.height='100%';
+  uh();
+  const pin=pins[ac.id];
+  if(pin){$('ptxt').textContent=pin;$('pb').classList.add('sh')}else $('pb').classList.remove('sh');
+  $('msgs').innerHTML='';crep();
+  if(pop){pop=false;$('pp').classList.remove('op')}
+  rl();
+}
+function uh(){
+  if(!ac)return;
+  const cav=$('cav');
+  cav.style=`width:38px;height:38px;font-size:15px;background:${gc(ac.name)}`;
+  cav.innerHTML=ac.type==='group'?(ac.gtype==='channel'?'📢':'👥'):gi(ac.name);
+  $('cn').textContent=ac.name;uhs();
+}
+function uhs(){
+  if(!ac)return;
+  const st=$('cs');
+  if(ac.type==='group'){st.textContent=(ac.members?.length||0)+" a'zo";st.className='chst';}
+  else{
+    const u=au.find(x=>x.email===ac.id);
+    if(u?.online){st.textContent='Online';st.className='chst onl';}
+    else{st.textContent=u?.lastSeen?'Oxirgi: '+ft(u.lastSeen):'Offline';st.className='chst';}
+  }
+}
+
+function rm(msgs,ig=false){
+  const area=$('msgs');area.innerHTML='';let ld='';
+  msgs.forEach(msg=>{
+    const d=new Date(msg.timestamp).toLocaleDateString('uz-UZ',{day:'numeric',month:'long'});
+    if(d!==ld){area.innerHTML+=`<div class="ddiv"><span>${d}</span></div>`;ld=d;}
+    area.innerHTML+=bb(msg,ig);
+  });
+  sc();
+}
+function am(msg,ig=false){$('msgs').innerHTML+=bb(msg,ig);}
+function bb(msg,ig=false){
+  const io2=msg.senderId===me.email;
+  const sn=io2?'Siz':(au.find(u=>u.email===msg.senderId)?.name||msg.senderId.split('@')[0]);
+  const rph=msg.replyTo?`<div class="brep"><div class="brepn">${xe(msg.replyTo.senderName)}</div><div class="brept">${xe(msg.replyTo.text)}</div></div>`:'';
+  const rxh=msg.reactions?Object.entries(msg.reactions).map(([e,u])=>`<div class="rxn">${e}<span class="rxnc">${u.length}</span></div>`).join(''):'';
+  const ava=io2?'':`<div class="avsm" style="background:${gc(sn)}">${gi(sn)}</div>`;
+  return `<div class="mrow ${io2?'out':'in'}" data-msgid="${msg.id}" oncontextmenu="cxm(event,'${msg.id}',${io2})">
+    ${ava}
+    <div>
+      <div class="bbl" data-msgid="${msg.id}">
+        ${ig&&!io2?`<div class="gsender">${xe(sn)}</div>`:''}
+        ${rph}
+        <span class="btxt">${xe(msg.text)}</span>${msg.edited?'<span class="edited">tahrirlangan</span>':''}
+        <div class="bmeta"><span class="btime">${ft(msg.timestamp)}</span>${io2?`<span class="bchk ${msg.read?'r':''}">✓✓</span>`:''}</div>
+      </div>
+      ${rxh?`<div class="rxns">${rxh}</div>`:''}
+    </div>
+  </div>`;
+}
+
+function send(){
+  const inp=$('mi'),tx=inp.value.trim();
+  if(!tx||!ac)return;
+  const id='p'+Date.now();
+  const md={id,senderId:me.email,text:tx,timestamp:new Date().toISOString()};
+  if(rp)md.replyTo={text:rp.text,senderName:rp.senderName};
+  if(ac.type==='user')sk.emit('send-message',{...md,receiverId:ac.id});
+  else sk.emit('send-group-message',{...md,groupId:ac.id});
+  const w=document.createElement('div');
+  w.setAttribute('data-pd',id);
+  w.innerHTML=bb(md,ac.type==='group');
+  $('msgs').appendChild(w);
+  sc();slm(ac.id,md);
+  inp.value='';inp.style.height='auto';
+  crep();sty();
+}
+function hk(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send();}}
+function hi(el){
+  el.style.height='auto';el.style.height=Math.min(el.scrollHeight,110)+'px';
+  if(ac?.type==='user'){
+    if(!ity){ity=true;sk.emit('typing',{senderId:me.email,receiverId:ac.id,isTyping:true});}
+    clearTimeout(tt);tt=setTimeout(sty,2000);
+  }
+}
+function sty(){if(ac?.type==='user'&&ity){ity=false;sk.emit('typing',{senderId:me.email,receiverId:ac.id,isTyping:false});}}
+
+function cxm(e,msgId,io2){
+  e.preventDefault();
+  const cx=$('ctx');
+  const em=['❤️','😂','👍','🔥','😮','😢'];
+  cx.innerHTML=`<div class="cxe">${em.map(x=>`<div class="cxem" onclick="arxn('${msgId}','${x}')">${x}</div>`).join('')}</div>
+    <div class="cxd"></div>
+    <div class="cxi" onclick="mrep('${msgId}')">↩️ Javob berish</div>
+    <div class="cxi" onclick="mcpy('${msgId}')">📋 Nusxalash</div>
+    <div class="cxi" onclick="mpin('${msgId}')">📌 Muhim qilish</div>
+    ${io2?`<div class="cxd"></div>
+    <div class="cxi" onclick="medt('${msgId}')">✏️ Tahrirlash</div>
+    <div class="cxi danger" onclick="mdel('${msgId}')">🗑️ O'chirish</div>`:''}`;
+  cx.style.display='block';
+  let x=e.clientX,y=e.clientY;
+  if(x+190>window.innerWidth)x=window.innerWidth-198;
+  if(y+200>window.innerHeight)y=window.innerHeight-208;
+  cx.style.left=x+'px';cx.style.top=y+'px';
+}
+document.addEventListener('click',()=>$('ctx').style.display='none');
+
+function gmt(id){const el=document.querySelector(`[data-msgid="${id}"] .btxt`);return el?el.textContent:'';}
+function mrep(id){
+  const tx=gmt(id),row=document.querySelector(`.mrow[data-msgid="${id}"]`);
+  rp={id,text:tx,senderName:row?.classList.contains('out')?'Siz':(ac?.name||'User')};
+  $('rbn').textContent=rp.senderName;$('rbt').textContent=tx.slice(0,58);
+  $('rb').classList.add('sh');$('mi').focus();
+}
+function crep(){rp=null;$('rb').classList.remove('sh');}
+function mcpy(id){navigator.clipboard?.writeText(gmt(id));t('📋 Nusxalandi!');}
+function mpin(id){
+  if(!ac)return;const tx=gmt(id);
+  pins[ac.id]=tx;$('ptxt').textContent=tx;$('pb').classList.add('sh');t('📌 Muhim qilindi!');
+}
+function clrpin(){if(ac)pins[ac.id]=null;$('pb').classList.remove('sh');}
+function medt(id){const tx=gmt(id),inp=$('mi');inp.value=tx;inp.focus();hi(inp);t('✏️ Tahrirlang va yuboring');}
+function mdel(id){
+  const row=document.querySelector(`.mrow[data-msgid="${id}"]`);
+  if(row){row.style.opacity='0';row.style.transform='scale(.85)';row.style.transition='all .2s';setTimeout(()=>row.remove(),220);}
+  t("🗑️ O'chirildi");
+}
+function arxn(id,em){
+  const row=document.querySelector(`.mrow[data-msgid="${id}"]`);if(!row)return;
+  let rd=row.querySelector('.rxns');
+  if(!rd){rd=document.createElement('div');rd.className='rxns';row.querySelector('.bbl').after(rd);}
+  const ex=rd.querySelector(`[data-e="${em}"]`);
+  if(ex){const c=ex.querySelector('.rxnc');c.textContent=parseInt(c.textContent)+1;}
+  else rd.innerHTML+=`<div class="rxn" data-e="${em}">${em}<span class="rxnc">1</span></div>`;
+  t(em);
+}
+
+function bep(){$('epp').innerHTML=`<div class="epg">${E.map(e=>`<div class="epe" onclick="ie('${e}')">${e}</div>`).join('')}</div>`;}
+function tep(){$('epp').classList.toggle('sh');}
+function ie(e){
+  const inp=$('mi'),pos=inp.selectionStart;
+  inp.value=inp.value.slice(0,pos)+e+inp.value.slice(pos);
+  inp.selectionStart=inp.selectionEnd=pos+e.length;
+  inp.focus();$('epp').classList.remove('sh');
+}
+document.addEventListener('click',e=>{if(!e.target.closest('#ept')&&!e.target.closest('#epp'))$('epp').classList.remove('sh');});
+
+function tprof(){
+  if(!ac)return;pop=!pop;$('pp').classList.toggle('op',pop);if(pop)rprof();
+}
+function rprof(){
+  const c=ac;
+  $('ppc').innerHTML=`<div class="ppban" style="background:${gc(c.name)}">
+    <span style="font-size:48px">${c.type==='group'?(c.gtype==='channel'?'📢':'👥'):gi(c.name)}</span>
+    <button class="ppclose" onclick="tprof()">×</button>
+  </div>
+  <div class="ppinfo">
+    <div class="ppname">${xe(c.name)}</div>
+    <div class="ppun">${c.username||''}</div>
+    <div class="ppdiv"></div>
+    ${c.type==='group'
+      ?`<div class="pprow"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>${c.members?.length||0} a'zo</div>
+        <button class="msub" style="width:100%;margin-top:12px" onclick="lgr()">Guruhdan chiqish</button>`
+      :`<div class="pprow"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>${xe(c.id)}</div>`
+    }
+  </div>`;
+}
+function lgr(){t('Guruhdan chiqdingiz');ac=null;if(pop)tprof();$('es').style.display='flex';$('cv').style.display='none';}
+
+function og(tp){mtp=tp;smt(tp);$('mt').textContent=tp==='group'?'Yangi guruh yaratish':'Yangi kanal yaratish';$('gm').classList.add('sh');cmenu2();}
+function cm(){$('gm').classList.remove('sh');$('gn').value='';$('gu').value='';$('ge').textContent='';}
+function smt(tp){mtp=tp;$('mg').classList.toggle('on',tp==='group');$('mc').classList.toggle('on',tp==='channel');}
+function cg(){
+  const n=$('gn').value.trim(),u=$('gu').value.trim().replace('@','');
+  if(!n||!u){$('ge').textContent="Barcha maydonlarni to'ldiring!";return;}
+  sk.emit('create-group',{name:n,username:'@'+u,type:mtp,createdBy:me.email});
+}
+
+function tmenu(){$('sm').classList.toggle('op');}
+function cmenu2(){$('sm').classList.remove('op');}
+document.addEventListener('click',e=>{if(!e.target.closest('#sm')&&!e.target.closest('#mbt'))cmenu2();});
+function ump(){
+  if(!me)return;
+  const av=$('mav');av.style=`background:${gc(me.name)}`;av.textContent=gi(me.name);
+  $('mname').textContent=me.name;$('musr').textContent=me.username||me.email;
+}
+
+function ttheme(){lm=!lm;document.body.classList.toggle('light',lm);$('tlbl').textContent=lm?"Qorong'u tema":"Yorug' tema";t(lm?'☀️ Yorug\' tema':'🌙 Qorong\'u tema');cmenu2();}
+function sc(){const a=$('msgs');a.scrollTop=a.scrollHeight;}
+function onsc(){const a=$('msgs');$('sb2').classList.toggle('sh',a.scrollHeight-a.scrollTop-a.clientHeight>180);}
+function t(msg){const el=$('toast');el.textContent=msg;el.classList.add('sh');clearTimeout(el._t);el._t=setTimeout(()=>el.classList.remove('sh'),2800);}
+</script>
+</body>
+</html>
