@@ -1,15 +1,11 @@
 {
-  "name": "TeleChat",
-  "short_name": "TeleChat",
-  "start_url": "/",
+  "background_color": "#ffffff",
+  "dir": "ltr",
   "display": "standalone",
-  "background_color": "#17212b",
-  "theme_color": "#17212b",
-  "icons": [
-    {
-      "src": "https://telegram-1-9311.onrender.com/icon.png",
-      "sizes": "192x192",
-      "type": "image/png"
-    }
-  ]
+  "name": "TeleChat",
+  "orientation": "any",
+  "scope": "/",
+  "short_name": "Telechat",
+  "start_url": "/",
+  "theme_color": "#ffffff"
 }
